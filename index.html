@@ -1,1 +1,588 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F2ECDC">
+<title>2048 · Doble o nada</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%23DE3E1B'/%3E%3Ctext x='32' y='47' font-family='Arial Black,Arial' font-size='40' font-weight='900' text-anchor='middle' fill='%23F2ECDC'%3E2%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Instrument+Serif:ital@0;1&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F2ECDC; --paper-hi:#F7F2E6;
+  --ink:#17130D; --ink-60:rgba(23,19,13,.62); --ink-30:rgba(23,19,13,.3);
+  --acc:#DE3E1B;
+  --pad:10px; --gap:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--paper);color:var(--ink);font-family:'Space Mono',monospace;min-height:100vh}
+/* grano de papel */
+body::before{content:"";position:fixed;inset:0;z-index:999;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.09 0 0 0 0 0.075 0 0 0 0 0.05 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");}
+::selection{background:var(--ink);color:var(--paper)}
+button{font-family:inherit}
 
+/* ---- cabecera tipo periódico ---- */
+.masthead{display:flex;align-items:center;gap:18px;padding:14px 26px 4px}
+.masthead .rule{flex:1;height:1px;background:var(--ink-30)}
+.mh-text{font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-60);white-space:nowrap}
+
+/* ---- composición ---- */
+.page{max-width:1040px;margin:0 auto;padding:34px 28px 60px;display:grid;grid-template-columns:300px minmax(0,1fr);gap:56px;align-items:start}
+.side{position:sticky;top:26px;user-select:none;-webkit-user-select:none}
+.brand{font-family:'Archivo Black',sans-serif;font-size:clamp(64px,7.6vw,88px);line-height:.83;letter-spacing:-.015em;text-shadow:.048em .048em 0 var(--acc)}
+.brand span{display:block}
+.tag{font-family:'Instrument Serif',serif;font-style:italic;font-size:20px;margin:16px 0 10px}
+.how{font-size:10.5px;line-height:1.8;color:var(--ink-60)}
+.how b{color:var(--ink)}
+
+/* estadísticas como entradas de sumario */
+.stats{display:grid;grid-template-columns:1fr 1fr;column-gap:22px;margin-top:22px}
+.stat{border-top:1.5px solid var(--ink);padding:8px 0 14px}
+.s-label{display:block;font-size:8.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-60);margin-bottom:6px}
+.s-value{display:block;transform-origin:left bottom;font-family:'Archivo Black';font-size:clamp(20px,2vw,27px);line-height:1}
+#score.bump{animation:bump .18s ease}
+@keyframes bump{40%{transform:scale(1.14);color:var(--acc)}}
+
+/* botones con desregistro bermellón */
+.actions{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap}
+.btn{font-family:'Space Mono';font-weight:700;font-size:10px;letter-spacing:.18em;text-transform:uppercase;padding:13px 18px;border-radius:2px;cursor:pointer;transition:transform .1s,box-shadow .1s,opacity .2s}
+.btn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.btn.primary{background:var(--ink);color:var(--paper-hi);border:none;box-shadow:4px 4px 0 var(--acc)}
+.btn.primary:hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 var(--acc)}
+.btn.primary:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--acc)}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--ink);box-shadow:4px 4px 0 rgba(23,19,13,.15)}
+.btn.ghost:hover{transform:translate(-1px,-1px);box-shadow:5px 5px 0 rgba(23,19,13,.15)}
+.btn.ghost:active{transform:translate(3px,3px);box-shadow:0 0 0 rgba(23,19,13,.15)}
+.btn:disabled{opacity:.32;pointer-events:none;box-shadow:none}
+
+/* teclas vivas */
+.keys{margin-top:26px;display:flex;flex-direction:column;gap:9px}
+.krow{display:flex;align-items:center;gap:7px}
+kbd{font-family:'Space Mono';font-size:10px;min-width:26px;padding:4px 6px;text-align:center;border:1px solid var(--ink-30);border-bottom-width:2.5px;border-radius:4px;color:var(--ink-60);transition:.08s}
+kbd.pressed{background:var(--ink);color:var(--paper-hi);border-color:var(--ink);transform:translateY(1.5px)}
+.k-lbl{font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-60);margin:0 6px 0 2px}
+.swipehint{display:none;margin-top:22px;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-60);line-height:1.8}
+@media (pointer:coarse){.keys{display:none}.swipehint{display:block}}
+
+/* ---- escenario ---- */
+.stage{width:100%;max-width:520px;justify-self:center}
+
+/* tablero */
+.board{position:relative;width:100%;aspect-ratio:1;background:var(--paper-hi);border:2px solid var(--ink);border-radius:4px;box-shadow:9px 9px 0 rgba(23,19,13,.14);overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+.board.shake{animation:shake .22s ease}
+@keyframes shake{25%{transform:translateX(-6px)}55%{transform:translateX(5px)}80%{transform:translateX(-2px)}}
+.cells{position:absolute;inset:var(--pad);display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr);gap:var(--gap)}
+.cell{position:relative}
+/* cruces de registro de imprenta en cada celda vacía */
+.cell::before,.cell::after{content:"";position:absolute;left:50%;top:50%;background:rgba(23,19,13,.18)}
+.cell::before{width:12px;height:1px;transform:translate(-50%,-50%)}
+.cell::after{width:1px;height:12px;transform:translate(-50%,-50%)}
+.tiles,.floats{position:absolute;inset:0}
+
+/* fichas */
+.tile{position:absolute;top:0;left:0;width:calc(var(--cell)*1px);height:calc(var(--cell)*1px);transition:transform .11s cubic-bezier(.3,.9,.4,1);will-change:transform}
+.tin{position:relative;width:100%;height:100%;border-radius:3px;display:flex;align-items:center;justify-content:center}
+.num{font-family:'Archivo Black';line-height:1;letter-spacing:-.02em;font-size:calc(var(--cell)*.2*1px)}
+.tile.d1 .num,.tile.d2 .num{font-size:calc(var(--cell)*.42*1px)}
+.tile.d3 .num{font-size:calc(var(--cell)*.34*1px)}
+.tile.d4 .num{font-size:calc(var(--cell)*.27*1px)}
+.exp{position:absolute;right:7%;bottom:6%;font-weight:700;font-size:max(8px,calc(var(--cell)*.085*1px));letter-spacing:.05em;opacity:.55}
+
+/* la escala de tinta: papel → tinta → palabra roja → bermellón → sello */
+.v2 .tin{background:#E9DEC1;color:var(--ink);box-shadow:inset 0 0 0 1px rgba(23,19,13,.22)}
+.v4 .tin{background:#DCC9A0;color:var(--ink);box-shadow:inset 0 0 0 1px rgba(23,19,13,.28)}
+.v8 .tin{background:#8B8066;color:var(--paper-hi)}
+.v16 .tin{background:var(--ink);color:var(--paper-hi)}
+.v32 .tin{background:var(--ink);color:var(--acc)}
+.v64 .tin{background:var(--acc);color:var(--paper-hi)}
+.v128 .tin{background:var(--acc);color:var(--paper-hi)}
+.v128 .tin::after{content:"";position:absolute;inset:5px;border:1.5px solid rgba(247,242,230,.7);border-radius:2px}
+.v256 .tin{background:var(--paper-hi);color:var(--acc);box-shadow:inset 0 0 0 3px var(--acc)}
+.v512 .tin{background:var(--ink);color:var(--paper-hi)}
+.v512 .tin::after{content:"";position:absolute;inset:4px;border:1.5px solid var(--acc);border-radius:2px}
+.v1024 .tin{background:var(--ink);color:var(--acc)}
+.v1024 .tin::after{content:"";position:absolute;inset:4px;border:1.5px solid var(--acc);border-radius:2px}
+.v2048 .tin{background:var(--acc);color:var(--paper-hi);box-shadow:inset 0 0 0 2px rgba(247,242,230,.9)}
+.v2048 .tin::after{content:"";position:absolute;inset:5px;border:1.5px solid rgba(247,242,230,.9);border-radius:1px}
+
+.tile.new .tin{animation:appear .17s cubic-bezier(.2,.9,.3,1.2) backwards}
+@keyframes appear{from{transform:scale(.25);opacity:0}}
+.tile.pop{z-index:3}
+.tile.pop .tin{animation:pop .2s cubic-bezier(.3,1.2,.4,1)}
+@keyframes pop{35%{transform:scale(1.18)}}
+.tile.pop .tin::before{content:"";position:absolute;inset:0;border-radius:3px;animation:ring .3s ease-out forwards}
+@keyframes ring{from{box-shadow:0 0 0 0 rgba(23,19,13,.4)}to{box-shadow:0 0 0 16px rgba(23,19,13,0)}}
+.tile.pop.big .tin{animation:popBig .26s cubic-bezier(.3,1.3,.4,1)}
+@keyframes popBig{40%{transform:scale(1.3) rotate(-2deg)}}
+.tile.pop.big .tin::before{animation:ringAcc .35s ease-out forwards}
+@keyframes ringAcc{from{box-shadow:0 0 0 0 rgba(222,62,27,.55)}to{box-shadow:0 0 0 22px rgba(222,62,27,0)}}
+
+/* puntos flotantes al fusionar */
+.float{position:absolute;z-index:6;transform:translate(-50%,0);font-family:'Instrument Serif';font-style:italic;font-size:25px;color:var(--acc);text-shadow:1px 1px 0 var(--paper-hi);animation:rise .8s cubic-bezier(.2,.6,.3,1) forwards;pointer-events:none;white-space:nowrap}
+@keyframes rise{to{transform:translate(-50%,-42px);opacity:0}}
+
+/* veladuras de fin / victoria */
+.veil{position:absolute;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;text-align:center;background:rgba(242,236,220,.87);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .35s;padding:20px}
+.veil.show{opacity:1;pointer-events:auto}
+.v-kicker{font-size:9.5px;letter-spacing:.3em;text-transform:uppercase;color:var(--ink-60);margin-bottom:12px}
+.v-big{font-family:'Archivo Black';font-size:clamp(34px,9vw,46px);line-height:.95;letter-spacing:-.01em;margin-bottom:12px}
+.v-big.huge{font-size:clamp(56px,15vw,84px);color:var(--acc);text-shadow:.05em .05em 0 var(--ink)}
+.v-sub{font-family:'Instrument Serif';font-style:italic;font-size:17px;max-width:34ch;margin:0 auto 22px;line-height:1.5}
+.v-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+
+/* la cuenta: regla logarítmica de 2 a 2048 */
+.ruler{margin-top:20px;user-select:none}
+.ruler-head{display:flex;justify-content:space-between;font-size:8.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-60);margin-bottom:4px;padding:0 14px}
+#rulerval{color:var(--ink);font-weight:700}
+.track{position:relative;height:44px;margin:0 14px}
+.track::before{content:"";position:absolute;left:0;right:0;top:14px;height:1.5px;background:var(--ink)}
+.tick{position:absolute;top:10px;width:1.5px;height:9px;background:rgba(23,19,13,.25);transform:translateX(-50%)}
+.tick.major{top:7px;height:12px;width:2px}
+.tick.lit{background:var(--ink)}
+.tick span{position:absolute;top:22px;left:50%;transform:translateX(-50%);font-size:8px;color:rgba(23,19,13,.45);white-space:nowrap}
+.tick.lit span{color:var(--ink);font-weight:700}
+.cursor{position:absolute;top:2px;width:0;height:0;transform:translateX(-50%);border-left:5.5px solid transparent;border-right:5.5px solid transparent;border-top:8px solid var(--acc);transition:left .45s cubic-bezier(.3,1.3,.4,1);filter:drop-shadow(1.5px 1.5px 0 rgba(23,19,13,.35))}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:30px;transform:translate(-50%,14px);z-index:90;background:var(--ink);color:var(--paper-hi);font-size:9.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;padding:12px 18px;border-radius:2px;box-shadow:4px 4px 0 var(--acc);opacity:0;pointer-events:none;transition:.25s cubic-bezier(.2,.9,.3,1)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* móvil */
+@media (max-width:880px){
+  .page{display:flex;flex-direction:column;gap:26px;padding:22px 18px 48px}
+  .side{position:static}
+  .brand{font-size:clamp(44px,13vw,58px);line-height:1}
+  .brand span{display:inline}
+  .tag{font-size:17px;margin:8px 0 6px}
+  .how{font-size:10px}
+  .stats{grid-template-columns:repeat(4,1fr);column-gap:12px;margin-top:14px}
+  .actions{margin-top:14px}
+  .masthead{padding:12px 16px 2px;gap:10px}
+  .mh-text{font-size:8px;letter-spacing:.14em}
+}
+@media (max-width:560px){.stats{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <span class="rule"></span>
+  <span class="mh-text" id="mhText"></span>
+  <span class="rule"></span>
+</header>
+
+<main class="page">
+  <aside class="side">
+    <h1 class="brand"><span>2</span><span>0</span><span>4</span><span>8</span></h1>
+    <p class="tag">El juego de las potencias de dos.</p>
+    <p class="how">Desliza con las <b>flechas</b> o <b>WASD</b>. Cuando dos fichas iguales chocan, se funden en una del doble y sumas puntos. Cada ficha lleva su exponente: 2¹, 2², 2³… Llega al sello de <b>2048</b>.</p>
+
+    <div class="stats">
+      <div class="stat"><span class="s-label">Puntos</span><span class="s-value" id="score">0</span></div>
+      <div class="stat"><span class="s-label">Récord</span><span class="s-value" id="best">0</span></div>
+      <div class="stat"><span class="s-label">Jugadas</span><span class="s-value" id="moves">0</span></div>
+      <div class="stat"><span class="s-label">Ficha máx.</span><span class="s-value" id="maxv">2</span></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn primary" id="btnNew">Nueva partida</button>
+      <button class="btn ghost" id="btnUndo" disabled>Deshacer</button>
+    </div>
+
+    <div class="keys">
+      <div class="krow">
+        <kbd data-key="ArrowLeft">←</kbd><kbd data-key="ArrowUp">↑</kbd><kbd data-key="ArrowDown">↓</kbd><kbd data-key="ArrowRight">→</kbd>
+        <span class="k-lbl">mover</span>
+      </div>
+      <div class="krow">
+        <kbd data-key="z">Z</kbd><span class="k-lbl">deshacer</span>
+        <kbd data-key="r">R</kbd><span class="k-lbl">reiniciar</span>
+      </div>
+    </div>
+    <p class="swipehint">Desliza el dedo sobre el tablero para mover las fichas.</p>
+  </aside>
+
+  <section class="stage">
+    <div class="board" id="board" aria-label="Tablero 2048">
+      <div class="cells" id="cells"></div>
+      <div class="tiles" id="tiles"></div>
+      <div class="floats" id="floats"></div>
+      <div class="veil" id="veil">
+        <div>
+          <div class="v-kicker" id="v-kicker"></div>
+          <div class="v-big" id="v-big"></div>
+          <p class="v-sub" id="v-sub"></p>
+          <div class="v-actions">
+            <button class="btn primary" id="v-main"></button>
+            <button class="btn ghost" id="v-alt"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ruler">
+      <div class="ruler-head"><span>La cuenta · 2 → 2048</span><span id="rulerval">2¹</span></div>
+      <div class="track" id="track"><div class="cursor" id="cursor" style="left:0%"></div></div>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+"use strict";
+const PAD = 10, GAP = 10, TRANS = 110;
+const SUP = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+const $ = id => document.getElementById(id);
+
+const boardEl = $("board"), tilesEl = $("tiles"), floatsEl = $("floats"), cellsEl = $("cells");
+const scoreEl = $("score"), bestEl = $("best"), movesEl = $("moves"), maxEl = $("maxv");
+const veilEl = $("veil"), vk = $("v-kicker"), vb = $("v-big"), vs = $("v-sub"), vmain = $("v-main"), valt = $("v-alt");
+const undoBtn = $("btnUndo"), toastEl = $("toast");
+const trackEl = $("track"), cursorEl = $("cursor"), rulervalEl = $("rulerval");
+
+let grid, score = 0, best = 0, moves = 0, won = false, over = false, keep = false;
+let cell = 100, uid = 0, toastTimer = null;
+const undoStack = [], pending = [];
+
+try { best = parseInt(localStorage.getItem("dobleonada.best"), 10) || 0; } catch (e) {}
+
+/* ---- elementos estáticos ---- */
+for (let i = 0; i < 16; i++) cellsEl.appendChild(document.createElement("div")).className = "cell";
+
+const VALUES = [2,4,8,16,32,64,128,256,512,1024,2048];
+const tickEls = VALUES.map((v, i) => {
+  const t = document.createElement("div");
+  t.className = "tick" + (v === 2 || v === 2048 ? " major" : "");
+  t.style.left = (i / 10 * 100) + "%";
+  t.innerHTML = `<span>${v}</span>`;
+  trackEl.insertBefore(t, cursorEl);
+  return t;
+});
+
+ $("mhText").textContent = "Edición del " +
+  new Date().toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" }) + " · doble o nada";
+
+/* ---- utilidades ---- */
+const emptyGrid = () => Array.from({ length: 4 }, () => Array(4).fill(null));
+const inB = (r, c) => r >= 0 && r < 4 && c >= 0 && c < 4;
+const cls = v => "v" + (v > 2048 ? 2048 : v) + " d" + String(v).length;
+const expLabel = v => "2" + String(Math.round(Math.log2(v))).split("").map(d => SUP[+d]).join("");
+const fmt = n => n.toLocaleString("es-ES");
+
+/* ---- fichas ---- */
+function buildTile(value, r, c) {
+  const t = { id: ++uid, value, row: r, col: c };
+  const el = document.createElement("div");
+  el.className = "tile " + cls(value);
+  el.innerHTML = `<div class="tin"><span class="num">${value}</span><span class="exp">${expLabel(value)}</span></div>`;
+  el._t = t;
+  t.el = el;
+  return t;
+}
+function place(t) {
+  t.el.style.transform = `translate(${PAD + t.col * (cell + GAP)}px, ${PAD + t.row * (cell + GAP)}px)`;
+}
+function makeTile(value, r, c, kind) {
+  const t = buildTile(value, r, c);
+  t.el.classList.add(kind);
+  place(t);
+  tilesEl.appendChild(t.el);
+  return t;
+}
+
+/* ---- geometría responsiva ---- */
+function layout() {
+  const w = boardEl.clientWidth;
+  cell = (w - PAD * 2 - GAP * 3) / 4;
+  boardEl.style.setProperty("--cell", cell);
+  for (const el of tilesEl.children) place(el._t);
+}
+new ResizeObserver(layout).observe(boardEl);
+layout();
+
+/* ---- operaciones diferidas (para poder cancelarlas si llega otro movimiento) ---- */
+function schedule(fn) {
+  const op = { fn };
+  op.t = setTimeout(() => {
+    const i = pending.indexOf(op);
+    if (i > -1) pending.splice(i, 1);
+    fn();
+  }, TRANS);
+  pending.push(op);
+}
+function flushPending() {
+  while (pending.length) {
+    const op = pending.shift();
+    clearTimeout(op.t);
+    op.fn();
+  }
+}
+
+/* ---- generación ---- */
+function spawn() {
+  const empt = [];
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) if (!grid[r][c]) empt.push([r, c]);
+  if (!empt.length) return;
+  const [r, c] = empt[(Math.random() * empt.length) | 0];
+  grid[r][c] = makeTile(Math.random() < 0.9 ? 2 : 4, r, c, "new");
+}
+
+/* ---- mecánica ---- */
+function slide(dr, dc) {
+  const order = [];
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) order.push({ r, c });
+  // procesar primero las fichas más cercanas al borde destino
+  const bias = p => (dr === 1 ? p.r : dr === -1 ? 3 - p.r : 0) + (dc === 1 ? p.c : dc === -1 ? 3 - p.c : 0);
+  order.sort((a, b) => bias(b) - bias(a));
+
+  const mergedIds = new Set(), merges = [];
+  let moved = false;
+
+  for (const { r, c } of order) {
+    const tile = grid[r][c];
+    if (!tile) continue;
+    let cr = r, cc = c, target = null;
+    for (;;) {
+      const nr = cr + dr, nc = cc + dc;
+      if (!inB(nr, nc)) break;
+      const occ = grid[nr][nc];
+      if (!occ) { cr = nr; cc = nc; continue; }
+      if (occ.value === tile.value && !mergedIds.has(occ.id)) { target = occ; cr = nr; cc = nc; }
+      break;
+    }
+    if (target) {
+      grid[r][c] = null;
+      const result = buildTile(tile.value * 2, cr, cc);
+      grid[cr][cc] = result;
+      mergedIds.add(result.id);
+      tile.row = cr; tile.col = cc; // para animar el viaje hasta la fusión
+      merges.push({ mover: tile, target, result });
+      moved = true;
+    } else if (cr !== r || cc !== c) {
+      grid[r][c] = null;
+      grid[cr][cc] = tile;
+      tile.row = cr; tile.col = cc;
+      place(tile);
+      moved = true;
+    }
+  }
+  return { moved, merges };
+}
+
+function finishMerge(m) {
+  m.mover.el.remove();
+  m.target.el.remove();
+  const t = m.result;
+  t.el.classList.add("pop" + (t.value >= 1024 ? " big" : ""));
+  place(t);
+  tilesEl.appendChild(t.el);
+  spawnFloat(t, "+" + fmt(t.value));
+  updateMax();
+  if (t.value === 2048 && !won) { won = true; setTimeout(showWin, 380); }
+}
+
+function movesAvailable() {
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
+    const t = grid[r][c];
+    if (!t) return true;
+    if (r < 3 && grid[r + 1][c] && grid[r + 1][c].value === t.value) return true;
+    if (c < 3 && grid[r][c + 1] && grid[r][c + 1].value === t.value) return true;
+  }
+  return false;
+}
+
+function afterTurn() {
+  updateMax();
+  if (!movesAvailable()) { over = true; setTimeout(showLose, 300); }
+  updateHUD(false);
+}
+
+function doMove(dr, dc) {
+  if (over || (!keep && won)) return;
+  flushPending();
+  const { moved, merges } = slide(dr, dc);
+  if (!moved) {
+    boardEl.classList.remove("shake");
+    void boardEl.offsetWidth;
+    boardEl.classList.add("shake");
+    return;
+  }
+  undoStack.push(snapshot());
+  if (undoStack.length > 20) undoStack.shift();
+  moves++;
+  let gained = 0;
+  for (const m of merges) {
+    place(m.mover);
+    gained += m.result.value;
+    schedule(() => finishMerge(m));
+  }
+  score += gained;
+  schedule(() => { spawn(); afterTurn(); });
+  updateHUD(gained > 0);
+}
+
+/* ---- deshacer / reinicio ---- */
+function snapshot() {
+  return { cells: grid.map(row => row.map(t => t ? t.value : 0)), score, moves, won };
+}
+function restore(s) {
+  tilesEl.innerHTML = "";
+  grid = emptyGrid();
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
+    const v = s.cells[r][c];
+    if (v) { const t = buildTile(v, r, c); t.el.classList.add("new"); place(t); tilesEl.appendChild(t.el); grid[r][c] = t; }
+  }
+  score = s.score; moves = s.moves; won = s.won; over = false;
+  hideVeil(); updateHUD(false); updateMax();
+}
+function undo() {
+  flushPending();
+  if (!undoStack.length) { showToast("Nada que deshacer"); return; }
+  restore(undoStack.pop());
+  showToast("Un paso atrás");
+}
+function newGame() {
+  flushPending();
+  undoStack.length = 0;
+  score = 0; moves = 0; won = false; over = false; keep = false;
+  grid = emptyGrid();
+  tilesEl.innerHTML = "";
+  hideVeil();
+  spawn(); spawn();
+  updateHUD(false); updateMax();
+}
+
+/* ---- HUD ---- */
+function updateHUD(bumpScore) {
+  if (score > best) {
+    best = score;
+    try { localStorage.setItem("dobleonada.best", best); } catch (e) {}
+  }
+  scoreEl.textContent = fmt(score);
+  bestEl.textContent = fmt(best);
+  movesEl.textContent = moves;
+  undoBtn.disabled = !undoStack.length;
+  if (bumpScore) {
+    scoreEl.classList.remove("bump");
+    void scoreEl.offsetWidth;
+    scoreEl.classList.add("bump");
+  }
+}
+function updateMax() {
+  let mx = 2;
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) if (grid[r][c]) mx = Math.max(mx, grid[r][c].value);
+  maxEl.textContent = fmt(mx);
+  cursorEl.style.left = (Math.min(1, (Math.log2(mx) - 1) / 10) * 100) + "%";
+  rulervalEl.textContent = expLabel(mx) + " · " + fmt(mx);
+  tickEls.forEach((el, i) => el.classList.toggle("lit", VALUES[i] <= mx));
+}
+function spawnFloat(t, text) {
+  const f = document.createElement("div");
+  f.className = "float";
+  f.textContent = text;
+  f.style.left = (PAD + t.col * (cell + GAP) + cell / 2) + "px";
+  f.style.top = (PAD + t.row * (cell + GAP) + cell * 0.18) + "px";
+  floatsEl.appendChild(f);
+  setTimeout(() => f.remove(), 850);
+}
+
+/* ---- veladuras ---- */
+function showVeil(o) {
+  vk.textContent = o.kicker;
+  vb.textContent = o.big;
+  vb.classList.toggle("huge", !!o.huge);
+  vs.textContent = o.sub;
+  vmain.textContent = o.mainLabel;
+  vmain.onclick = () => { hideVeil(); o.mainFn && o.mainFn(); };
+  if (o.altLabel) {
+    valt.style.display = "";
+    valt.textContent = o.altLabel;
+    valt.onclick = () => { hideVeil(); o.altFn && o.altFn(); };
+  } else valt.style.display = "none";
+  veilEl.classList.add("show");
+}
+function hideVeil() { veilEl.classList.remove("show"); }
+function showLose() {
+  showVeil({
+    kicker: "Fin de la partida",
+    big: "SIN SALIDA",
+    sub: `El tablero se llenó de tinta. Puntuación final: ${fmt(score)} en ${moves} jugadas.`,
+    mainLabel: "Nueva partida",
+    mainFn: newGame
+  });
+}
+function showWin() {
+  showVeil({
+    kicker: "Sello conseguido",
+    big: "2048", huge: true,
+    sub: "Llegaste a la undécima potencia: 2¹¹. La prensa puede seguir rodando si te atreves.",
+    mainLabel: "Seguir jugando",
+    mainFn: () => { keep = true; },
+    altLabel: "Nueva partida",
+    altFn: newGame
+  });
+}
+
+/* ---- toast ---- */
+function showToast(msg) {
+  toastEl.textContent = msg;
+  toastEl.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1600);
+}
+
+/* ---- entrada: teclado ---- */
+const KEYMAP = {
+  ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1],
+  w: [-1, 0], s: [1, 0], a: [0, -1], d: [0, 1]
+};
+function flashKey(k, on) {
+  const el = document.querySelector(`kbd[data-key="${k}"]`);
+  if (el) el.classList.toggle("pressed", on);
+}
+window.addEventListener("keydown", e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  if (KEYMAP[k]) { e.preventDefault(); flashKey(k, true); doMove(...KEYMAP[k]); }
+  else if (k === "z") { e.preventDefault(); flashKey("z", true); undo(); }
+  else if (k === "r") { e.preventDefault(); flashKey("r", true); newGame(); showToast("Partida nueva"); }
+});
+window.addEventListener("keyup", e => {
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  flashKey(k, false);
+});
+
+/* ---- entrada: táctil ---- */
+let touchStart = null;
+boardEl.addEventListener("touchstart", e => {
+  touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+}, { passive: true });
+boardEl.addEventListener("touchend", e => {
+  if (!touchStart) return;
+  const dx = e.changedTouches[0].clientX - touchStart.x;
+  const dy = e.changedTouches[0].clientY - touchStart.y;
+  touchStart = null;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
+  if (Math.abs(dx) > Math.abs(dy)) doMove(0, dx > 0 ? 1 : -1);
+  else doMove(dy > 0 ? 1 : -1, 0);
+});
+
+/* ---- botones ---- */
+ $("btnNew").addEventListener("click", () => { newGame(); showToast("Partida nueva"); });
+undoBtn.addEventListener("click", undo);
+
+/* ---- arranque ---- */
+grid = emptyGrid();
+spawn(); spawn();
+updateHUD(false);
+updateMax();
+})();
+</script>
+</body>
+</html>
