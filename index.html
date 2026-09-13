@@ -2,8 +2,11 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#F2ECDC" id="metaTheme">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>2048 · Doble o nada</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%23DE3E1B'/%3E%3Ctext x='32' y='47' font-family='Arial Black,Arial' font-size='40' font-weight='900' text-anchor='middle' fill='%23F2ECDC'%3E2%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -57,18 +60,27 @@ html[data-theme="dark"]{
   --t2:#282217; --t4:#372E1F; --t8:#5B5140; --t1024b:#0C0906;
   --brA:rgba(239,231,211,.14); --brB:rgba(239,231,211,.2); --brC:rgba(239,231,211,.55); --brD:rgba(239,231,211,.85);
 }
-/* el cambio de tema se derrama por toda la app */
 html{
+  height:100%;overflow:hidden;overscroll-behavior:none;-webkit-text-size-adjust:100%;
   background:var(--paper);
   transition:--paper .5s ease,--paper-hi .5s ease,--ink .5s ease,--ink-60 .5s ease,--ink-45 .5s ease,--ink-30 .5s ease,
     --acc .5s ease,--cellmark .5s ease,--drop .5s ease,--veil .5s ease,
     --t2 .5s ease,--t4 .5s ease,--t8 .5s ease,--t1024b .5s ease,--brA .5s ease,--brB .5s ease,--brC .5s ease,--brD .5s ease;
 }
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--paper);color:var(--ink);font-family:'Space Mono',monospace;min-height:100svh;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
-@supports not (height:100svh){body{min-height:100vh}}
+*{box-sizing:border-box;margin:0;padding:0;touch-action:manipulation}
+
+/* ===== CANDADO DE APP =====
+   el documento queda clavado: nada de rebote, nada de arrastre lateral,
+   nada de "más allá". el scroll vive dentro de cada pantalla. */
+body{
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  display:flex;flex-direction:column;overflow:hidden;overscroll-behavior:none;
+  background:var(--paper);color:var(--ink);font-family:'Space Mono',monospace;
+  -webkit-tap-highlight-color:transparent;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+}
 ::selection{background:var(--ink);color:var(--paper)}
-button{font-family:inherit;color:inherit;touch-action:manipulation}
+button{font-family:inherit;color:inherit}
 
 /* grano de papel: tinta oscura de día, polvo claro de noche */
 body::before,body::after{content:"";position:fixed;inset:0;z-index:2500;pointer-events:none;transition:opacity .5s ease}
@@ -77,19 +89,26 @@ body::after{opacity:0;background-image:url("data:image/svg+xml,%3Csvg xmlns='htt
 html[data-theme="dark"] body::before{opacity:0}
 html[data-theme="dark"] body::after{opacity:1}
 
-/* ---- cabecera compartida ---- */
-.masthead{display:flex;align-items:center;gap:18px;padding:max(14px,env(safe-area-inset-top)) 26px 4px}
-.masthead .rule{flex:1;height:1px;background:var(--ink-30)}
-.mh-text{font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-60);white-space:nowrap}
+/* barra de desplazamiento discreta, tinta sobre papel */
+.screen::-webkit-scrollbar{width:6px}
+.screen::-webkit-scrollbar-thumb{background:var(--ink-30);border-radius:3px}
 
-/* ---- pantallas superpuestas ---- */
-main{display:grid;min-height:calc(100svh - 48px)}
-@supports not (height:100svh){main{min-height:calc(100vh - 48px)}}
-.screen{grid-area:1/1;width:100%;display:none}
+/* ---- cabecera compartida ---- */
+.masthead{display:flex;align-items:center;gap:18px;flex:none;padding:max(14px,env(safe-area-inset-top)) 26px 4px}
+.masthead .rule{flex:1;height:1px;background:var(--ink-30);min-width:0}
+.mh-text{font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-60);white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis;max-width:64%}
+@media (max-width:560px){
+  .masthead{gap:10px;padding:max(12px,env(safe-area-inset-top)) 14px 4px}
+  .mh-text{font-size:8px;letter-spacing:.1em}
+}
+
+/* ---- pantallas superpuestas: cada una es su propio scroll, sin cadena al navegador ---- */
+main{flex:1;min-height:0;display:grid}
+.screen{grid-area:1/1;display:none;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 .screen.active{display:block}
 
 /* ---- barrido de tinta entre pantallas ---- */
-.wipe{position:fixed;inset:-6% -8%;z-index:2000;background:var(--acc);display:grid;place-items:center;transform:translateX(-112%) rotate(-2deg);pointer-events:none;visibility:hidden}
+.wipe{position:fixed;top:0;left:0;right:0;bottom:0;z-index:2000;background:var(--acc);display:grid;place-items:center;transform:translateX(-112%) rotate(-2deg);pointer-events:none;visibility:hidden}
 .wipe::before,.wipe::after{content:"";position:absolute;top:-10%;bottom:-10%;width:14px;background:#17130D;opacity:.92}
 .wipe::before{left:-2px}
 .wipe::after{right:-2px}
@@ -135,8 +154,9 @@ html[data-theme="dark"] #gIconMoon{opacity:0;transform:rotate(120deg) scale(.2)}
 .seg button:focus-visible{outline:2px solid var(--acc);outline-offset:-4px}
 
 /* ================= MENÚ ================= */
-.screen.menu.active{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:44px 22px calc(56px + env(safe-area-inset-bottom));text-align:center}
-.brand-xl{font-family:'Archivo Black',sans-serif;font-size:clamp(84px,25vw,148px);line-height:.85;letter-spacing:-.02em;text-shadow:.045em .045em 0 var(--acc)}
+.screen.menu.active{display:flex;flex-direction:column;align-items:center;text-align:center;padding:40px 22px calc(40px + env(safe-area-inset-bottom))}
+/* centrado seguro: con margen auto el bloque queda al medio si sobra espacio, y hace scroll limpio si falta */
+.brand-xl{font-family:'Archivo Black',sans-serif;font-size:clamp(84px,25vw,148px);line-height:.85;letter-spacing:-.02em;text-shadow:.045em .045em 0 var(--acc);margin-top:auto}
 .tag{font-family:'Instrument Serif',serif;font-style:italic;font-size:clamp(17px,4.6vw,21px);margin-top:16px}
 
 /* entradas escalonadas (se reactivan en cada visita) */
@@ -175,17 +195,18 @@ html[data-theme="dark"] #gIconMoon{opacity:0;transform:rotate(120deg) scale(.2)}
 @media (max-width:380px){.demo{--mc:44;--dg:7}}
 
 .menu-actions{display:flex;flex-direction:column;gap:14px;margin-top:32px;align-items:center;min-height:112px;justify-content:center}
-.menu-foot{margin-top:34px;display:flex;flex-direction:column;gap:7px;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-60)}
+.menu-foot{margin-top:34px;margin-bottom:auto;display:flex;flex-direction:column;gap:7px;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-60)}
 .menu-foot .m-best{color:var(--ink);font-weight:700}
 
 /* ================= JUEGO ================= */
 .screen.game{justify-self:center;width:min(100%,600px);padding:14px 18px calc(48px + env(safe-area-inset-bottom))}
-.gbar{display:flex;align-items:center;gap:12px;border-bottom:1.5px solid var(--ink);padding-bottom:13px;margin-bottom:14px}
+.screen.game.active{display:flex;flex-direction:column}
+.gbar{display:flex;align-items:center;gap:12px;border-bottom:1.5px solid var(--ink);padding-bottom:13px;margin-bottom:14px;flex:none}
 .g-title{flex:1;display:flex;align-items:baseline;gap:10px;min-width:0}
 .g-title b{font-family:'Archivo Black',sans-serif;font-size:19px;letter-spacing:-.01em}
 .g-title i{font-family:'Instrument Serif',serif;font-style:italic;font-size:14px;color:var(--ink-60);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-.statbar{display:grid;grid-template-columns:repeat(4,1fr);border-top:2px solid var(--ink);border-bottom:1px solid var(--ink-30)}
+.statbar{display:grid;grid-template-columns:repeat(4,1fr);border-top:2px solid var(--ink);border-bottom:1px solid var(--ink-30);flex:none}
 .st{position:relative;padding:9px 2px 11px}
 .st+.st::before{content:"";position:absolute;left:0;top:11px;bottom:11px;width:1px;background:var(--ink-30)}
 .st span{display:block;font-size:7.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-60);margin-bottom:5px}
@@ -196,14 +217,15 @@ html[data-theme="dark"] #gIconMoon{opacity:0;transform:rotate(120deg) scale(.2)}
 /* entradas de la pantalla de juego */
 .anim .gbar{animation:rise .45s cubic-bezier(.2,.8,.3,1) 0s both}
 .anim .statbar{animation:rise .45s cubic-bezier(.2,.8,.3,1) .06s both}
-.anim .board{animation:press .6s cubic-bezier(.2,.9,.3,1) .12s both}
+.anim .bwrap{animation:press .6s cubic-bezier(.2,.9,.3,1) .12s both}
 .anim .ruler{animation:rise .45s cubic-bezier(.2,.8,.3,1) .22s both}
 .anim .g-actions{animation:rise .45s cubic-bezier(.2,.8,.3,1) .3s both}
 .anim .keys,.anim .swipehint{animation:rise .45s cubic-bezier(.2,.8,.3,1) .38s both}
 @keyframes press{from{transform:scale(.93);opacity:0}60%{opacity:1}}
 
-/* tablero */
-.board{position:relative;width:100%;margin-top:16px;aspect-ratio:1;background:var(--paper-hi);border:2px solid var(--ink);border-radius:4px;box-shadow:9px 9px 0 var(--drop);overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+/* el tablero ocupa el espacio vertical que sobra: nunca obliga a desplazar la página */
+.bwrap{flex:1 1 240px;min-height:240px;display:grid;place-items:center;margin-top:16px}
+.board{position:relative;aspect-ratio:1;height:100%;max-width:100%;background:var(--paper-hi);border:2px solid var(--ink);border-radius:4px;box-shadow:9px 9px 0 var(--drop);overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
 .board.shake{animation:shake .22s ease}
 @keyframes shake{25%{transform:translateX(-6px)}55%{transform:translateX(5px)}80%{transform:translateX(-2px)}}
 .cells{position:absolute;inset:10px;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr);gap:10px}
@@ -287,7 +309,7 @@ html[data-theme="dark"] #gIconMoon{opacity:0;transform:rotate(120deg) scale(.2)}
 .v-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
 
 /* la cuenta: regla logarítmica */
-.ruler{margin-top:18px;user-select:none}
+.ruler{margin-top:18px;user-select:none;flex:none}
 .ruler-head{display:flex;justify-content:space-between;font-size:8.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-60);margin-bottom:4px;padding:0 14px}
 #rulerval{color:var(--ink);font-weight:700}
 .track{position:relative;height:44px;margin:0 14px}
@@ -304,22 +326,39 @@ html[data-theme="dark"] #gIconMoon{opacity:0;transform:rotate(120deg) scale(.2)}
 .cursor{position:absolute;top:2px;width:0;height:0;transform:translateX(-50%);border-left:5.5px solid transparent;border-right:5.5px solid transparent;border-top:8px solid var(--acc);transition:left .5s cubic-bezier(.3,1.4,.4,1);filter:drop-shadow(1.5px 1.5px 0 var(--ink-30))}
 
 /* acciones en zona de pulgar */
-.g-actions{display:flex;gap:12px;margin-top:18px}
+.g-actions{display:flex;gap:12px;margin-top:18px;flex:none}
 .g-actions .btn{flex:1;padding:15px 10px}
 
 /* leyenda de teclado (solo escritorio) */
-.keys{margin-top:24px;display:flex;flex-direction:column;gap:9px;align-items:center}
+.keys{margin-top:24px;display:flex;flex-direction:column;gap:9px;align-items:center;flex:none}
 .krow{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:center}
 kbd{font-family:'Space Mono',monospace;font-size:10px;min-width:26px;padding:4px 6px;text-align:center;border:1px solid var(--ink-30);border-bottom-width:2.5px;border-radius:4px;color:var(--ink-60);transition:.08s}
 kbd.pressed{background:var(--ink);color:var(--paper);border-color:var(--ink);transform:translateY(1.5px)}
 .k-lbl{font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-60);margin:0 6px 0 2px}
-.swipehint{display:none;margin-top:16px;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-60);text-align:center;line-height:1.9}
+.swipehint{display:none;margin-top:16px;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-60);text-align:center;line-height:1.9;flex:none}
 @media (pointer:coarse){.keys{display:none}.swipehint{display:block}}
 
 /* toast */
 .toast{position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom));transform:translate(-50%,14px);z-index:3000;background:var(--ink);color:var(--paper);font-size:9.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase;padding:12px 18px;border-radius:2px;box-shadow:4px 4px 0 var(--acc);opacity:0;pointer-events:none;transition:.3s cubic-bezier(.2,1.4,.4,1)}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 
+/* ----- modo compacto: pantallas bajas (móvil apaisado, ventanas pequeñas) ----- */
+@media (max-height:760px){
+  .screen.game{padding:10px 16px calc(20px + env(safe-area-inset-bottom))}
+  .bwrap{margin-top:10px}
+  .statbar .st{padding:7px 2px 9px}
+  .ruler{margin-top:10px}
+  .track{height:38px}
+  .g-actions{margin-top:10px}
+  .g-actions .btn{padding:12px 10px}
+}
+@media (max-height:560px){
+  .masthead{display:none}
+  .keys{display:none}
+  .screen.game{padding:8px 14px 14px}
+  .ruler{margin-top:8px}
+  .g-actions{margin-top:8px}
+}
 @media (max-width:420px){.st b{font-size:15px}.st span{font-size:7px;letter-spacing:.14em}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 </style>
@@ -400,18 +439,20 @@ kbd.pressed{background:var(--ink);color:var(--paper);border-color:var(--ink);tra
       <div class="st"><span>Máx.</span><b id="maxv">2</b></div>
     </div>
 
-    <div class="board" id="board" aria-label="Tablero 2048">
-      <div class="cells" id="cells"></div>
-      <div class="tiles" id="tiles"></div>
-      <div class="floats" id="floats"></div>
-      <div class="veil" id="veil">
-        <div class="v-wrap">
-          <div class="v-kicker" id="v-kicker"></div>
-          <div class="v-big" id="v-big"></div>
-          <p class="v-sub" id="v-sub"></p>
-          <div class="v-actions">
-            <button class="btn primary" id="v-main"></button>
-            <button class="btn ghost" id="v-alt"></button>
+    <div class="bwrap">
+      <div class="board" id="board" aria-label="Tablero 2048">
+        <div class="cells" id="cells"></div>
+        <div class="tiles" id="tiles"></div>
+        <div class="floats" id="floats"></div>
+        <div class="veil" id="veil">
+          <div class="v-wrap">
+            <div class="v-kicker" id="v-kicker"></div>
+            <div class="v-big" id="v-big"></div>
+            <p class="v-sub" id="v-sub"></p>
+            <div class="v-actions">
+              <button class="btn primary" id="v-main"></button>
+              <button class="btn ghost" id="v-alt"></button>
+            </div>
           </div>
         </div>
       </div>
@@ -526,7 +567,7 @@ function go(screen, after) {
   wipeEl.classList.remove("runR", "runL");
   void wipeEl.offsetWidth;
   wipeEl.classList.add(screen === "game" ? "runR" : "runL");
-  setTimeout(() => { apply(screen); if (after) after(); }, 300);   // el cambio ocurre bajo el barrido, ya con tamaño real
+  setTimeout(() => { apply(screen); if (after) after(); }, 300);
   setTimeout(() => wipeEl.classList.remove("runR", "runL"), 720);
 }
 function setHash(s) {
@@ -592,7 +633,7 @@ function buildTile(value, r, c) {
   const t = { id: ++uid, value, row: r, col: c };
   const el = document.createElement("div");
   el.className = "tile " + cls(value);
-  el.style.setProperty("--r", (Math.random() * 16 - 8).toFixed(1) + "deg");  // rotación de estampado aleatoria
+  el.style.setProperty("--r", (Math.random() * 16 - 8).toFixed(1) + "deg");
   el.innerHTML = `<div class="tin"><span class="num">${value}</span><span class="exp">${expLabel(value)}</span></div>`;
   el._t = t;
   t.el = el;
@@ -628,6 +669,7 @@ function layout() {
 }
 new ResizeObserver(layout).observe(boardEl);
 window.addEventListener("resize", layout);
+window.addEventListener("orientationchange", () => setTimeout(layout, 250));
 
 /* ---------- operaciones diferidas ---------- */
 function schedule(fn) {
@@ -833,7 +875,7 @@ function newGame(deal) {
   grid = emptyGrid();
   tilesEl.innerHTML = "";
   hideVeil();
-  if (deal && !REDUCED) { spawn(); setTimeout(spawn, 120); }   // reparto escalonado
+  if (deal && !REDUCED) { spawn(); setTimeout(spawn, 120); }
   else { spawn(); spawn(); }
   updateHUD(false); updateMax(); saveState();
   sessionActive = true;
@@ -844,7 +886,6 @@ function parseEl(el) {
   const n = parseInt((el.textContent || "0").replace(/[^\d]/g, ""), 10);
   return isNaN(n) ? 0 : n;
 }
-/* contador animado */
 function tween(el, to) {
   if (REDUCED) { el.textContent = fmt(to); return; }
   const prev = tw.get(el);
@@ -887,7 +928,7 @@ function updateMax() {
   rulervalEl.textContent = expLabel(mx) + " · " + fmt(mx);
   tickEls.forEach((el, i) => el.classList.toggle("lit", VALUES[i] <= mx));
   const tier = Math.round(Math.log2(mx));
-  if (tier > lastTier) {   // nuevo escalón: la marca de la regla salta
+  if (tier > lastTier) {
     const tk = tickEls[tier - 1];
     if (tk) { tk.classList.add("ping"); setTimeout(() => tk.classList.remove("ping"), 650); }
   }
@@ -988,6 +1029,11 @@ boardEl.addEventListener("touchend", e => {
   if (Math.abs(dx) > Math.abs(dy)) doMove(0, dx > 0 ? 1 : -1);
   else doMove(dy > 0 ? 1 : -1, 0);
 }, { passive: true });
+
+/* ---------- candado de gestos del navegador ---------- */
+/* pellizco de zoom en iOS y menú contextual al mantener pulsado */
+document.addEventListener("gesturestart", e => e.preventDefault());
+boardEl.addEventListener("contextmenu", e => e.preventDefault());
 
 /* ---------- botones ---------- */
 btnPlay.addEventListener("click", () => {
